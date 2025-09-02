@@ -68,7 +68,7 @@ rust::String fetch(
         .via(&executor)
         .thenValue([&result](auto&& res) mutable {
             if (res.hasValue()) {
-                result = res.value()
+                result = res.value();
             } else {
                 result = "not found";
             }
