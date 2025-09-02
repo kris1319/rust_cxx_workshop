@@ -1,0 +1,13 @@
+[package]
+name = "rust_cxx"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.99"
+cxx = "1.0.168"
+futures = "0.3.31"
+tokio = { version = "1", features = ["full"] }
+
+[build-dependencies]
+cxx-build = "1.0.168"
