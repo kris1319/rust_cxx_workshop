@@ -39,6 +39,12 @@ mod ffi {
         type IndexType;
     }
 
+    #[derive(Clone, Debug)]
+    struct IndexResult {
+        name: String,
+        positions: Vec<u32>,
+    }
+
     unsafe extern "C++" {
         //////////////////////////////////////////////////////////////////
         //    Exercise 1: Exposing Index class to Rust
@@ -235,6 +241,6 @@ async fn main() -> Result<()> {
 
     let fetched = fetch_thing(storage, &name).await?;
     println!("Fetched from storage: {:?}", fetched);
-    
+
     Ok(())
 }
