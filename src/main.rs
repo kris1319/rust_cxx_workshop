@@ -15,42 +15,6 @@ mod ffi {
     // Here go your shared structs and enums
     //////////////////////////////////////////////////////////////
 
-    extern "Rust" {
-        // your code goes here
-    }
-
-    unsafe extern "C++" {
-        include!("rust_cxx/include/indexshim.h");
-
-        // your code goes here
-    }
-
-    //////////////////////////////////////////////////////////////////
-    //    Exercise 1: Exposing Index class to Rust
-    //
-    //    * Declare an opaque type for the C++ class `Index` in the corresponding extern "C++" block
-    //    * Use `type` key word to declare the type
-    //////////////////////////////////////////////////////////////////
-
-    //////////////////////////////////////////////////////////////////
-    //    Exercise 2: Creating Index objects
-    //
-    //    * Add signature for the C++ Index constructor
-    //    * You can use #[Self = "Index"] attribute to indicate a static member function
-    //    * Function signarute in the bridge is a normal Rust function and matches 
-    //      the C++ function signature
-    //
-    //    p.s. This should fail :)
-    //////////////////////////////////////////////////////////////////
-
-    //////////////////////////////////////////////////////////////////
-    //    Exercise 3: Creating Index objects
-    //
-    //    * Add signature for the C++ Index creation function that returns a smart pointer
-    //    * Use cxx::UniquePtr or cxx::SharedPtr correspondingly
-    //    * Now create the Index object in the main function
-    //////////////////////////////////////////////////////////////////
-
     //////////////////////////////////////////////////////////////////
     //    Exercise 4: Paramentrised Index creation
     //
@@ -62,56 +26,117 @@ mod ffi {
     //    * Create Index object with different IndexType values in the main function
     //////////////////////////////////////////////////////////////////
 
-    //////////////////////////////////////////////////////////////////
-    //    Exercise 5: Exposing const Index methods
-    //
-    //    * Add signatures for index_type() and dictionary_size() methods
-    //    * Call them in the main function and print the results
-    //////////////////////////////////////////////////////////////////
+    #[repr(i32)]
+    #[derive(Clone, Copy, Debug)]
+    enum IndexType {
+        Tree,
+        HashMap,
+    }
+
+    extern "C++" {
+        include!("rust_cxx/include/index.h");
+
+        type IndexType;
+    }
+
+    unsafe extern "C++" {
+        //////////////////////////////////////////////////////////////////
+        //    Exercise 1: Exposing Index class to Rust
+        //
+        //    * Declare an opaque type for the C++ class `Index` in the corresponding extern "C++" block
+        //    * Use `type` key word to declare the type
+        //////////////////////////////////////////////////////////////////
+
+        include!("rust_cxx/include/indexshim.h");
+
+        type Index;
+
+        //////////////////////////////////////////////////////////////////
+        //    Exercise 2: Creating Index objects
+        //
+        //    * Add signature for the C++ Index constructor
+        //    * You can use #[Self = "Index"] attribute to indicate a static member function
+        //    * Function signarute in the bridge is a normal Rust function and matches 
+        //      the C++ function signature
+        //
+        //    p.s. This should fail :)
+        //////////////////////////////////////////////////////////////////
+
+        //////////////////////////////////////////////////////////////////
+        //    Exercise 3: Creating Index objects
+        //
+        //    * Add signature for the C++ Index creation function that returns a smart pointer
+        //    * Use cxx::UniquePtr or cxx::SharedPtr correspondingly
+        //    * Now create the Index object in the main function
+        //////////////////////////////////////////////////////////////////
+
+        fn new_index(type_: IndexType) -> UniquePtr<Index>;
+
+        //////////////////////////////////////////////////////////////////
+        //    Exercise 5: Exposing const Index methods
+        //
+        //    * Add signatures for index_type() and dictionary_size() methods
+        //    * Call them in the main function and print the results
+        //////////////////////////////////////////////////////////////////
+
+        fn dictionary_size(&self) -> i32;
+        fn index_type(&self) -> IndexType;
+
+        //////////////////////////////////////////////////////////////////
+        //    Exercise 6: Exposing non-const Index methods: indexing
+        //
+        //    * Add signatures for the index() method
+        //    * Use Pin<&mut Index> for the self parameter to indicate a mutable method
+        //    * Call it in the main function and print the results
+        //////////////////////////////////////////////////////////////////
+
+        fn index(self: Pin<&mut Index>, name: &CxxString, text: &CxxString);
+
+        fn search_index(index: &Index, word: &str) -> Vec<String>;
+
+        //////////////////////////////////////////////////////////////////
+        //    Exercise 7: Exposing Index search
+        //
+        //    * Define a shared struct to hold the results of the search
+        //    * Declare function signatures for the search shim functions
+        //////////////////////////////////////////////////////////////////
+
+        fn search_index_with_positions(index: &Index, word: &str) -> Vec<IndexResult>;
+    }
+
+    extern "Rust" {
+        type FetchTransmitter;
+        type StoreTransmitter;
+    }
 
     //////////////////////////////////////////////////////////////////
-    //    Exercise 6: Exposing non-const Index methods: indexing
-    //
-    //    * Add signatures for the index() method
-    //    * Use Pin<&mut Index> for the self parameter to indicate a mutable method
-    //    * Call it in the main function and print the results
+    //    Exercise 9
     //////////////////////////////////////////////////////////////////
+    unsafe extern "C++" {
+        include!("rust_cxx/include/storage.h");
+        type Storage;
 
-    //////////////////////////////////////////////////////////////////
-    //    Exercise 7: Exposing Index search
-    //
-    //    * Define a shared struct to hold the results of the search
-    //    * Declare function signatures for the search shim functions
-    //////////////////////////////////////////////////////////////////
+        #[Self = "Storage"]
+        fn init() -> SharedPtr<Storage>;
 
-    //////////////////////////////////////////////////////////////////
-    //    Example async signatures
-    //////////////////////////////////////////////////////////////////
-    // unsafe extern "C++" {
-    //     include!("rust_cxx/include/storage.h");
-    //     type Storage;
+        fn store(
+            storage: SharedPtr<Storage>, 
+            key: &CxxString, 
+            value: &CxxString,
+            ok: fn(ctx: Box<StoreTransmitter>),
+            fail: fn(ctx: Box<StoreTransmitter>, err: String),
+            ctx: Box<StoreTransmitter>,
+        );
 
-    //     #[Self = "Storage"]
-    //     fn init() -> SharedPtr<Storage>;
-
-    //     fn store(
-    //         storage: SharedPtr<Storage>, 
-    //         key: &CxxString, 
-    //         value: &CxxString,
-    //         ok: fn(ctx: Box<StoreTransmitter>),
-    //         fail: fn(ctx: Box<StoreTransmitter>, err: String),
-    //         ctx: Box<StoreTransmitter>,
-    //     );
-
-    //     fn fetch(
-    //         storage: SharedPtr<Storage>, 
-    //         key: &CxxString, 
-    //         ok_found: fn(ctx: Box<FetchTransmitter>, result: String),
-    //         ok_not_found: fn(ctx: Box<FetchTransmitter>),
-    //         fail: fn(ctx: Box<FetchTransmitter>, err: String),
-    //         ctx: Box<FetchTransmitter>,
-    //     );
-    // }
+        fn fetch(
+            storage: SharedPtr<Storage>, 
+            key: &CxxString, 
+            ok_found: fn(ctx: Box<FetchTransmitter>, result: String),
+            ok_not_found: fn(ctx: Box<FetchTransmitter>),
+            fail: fn(ctx: Box<FetchTransmitter>, err: String),
+            ctx: Box<FetchTransmitter>,
+        );
+    }
 }
 
 //////////////////////////////////////////////////////////////////
@@ -129,67 +154,87 @@ mod ffi {
 //    * Implement the async function that uses the channel to wait for the result
 //////////////////////////////////////////////////////////////////
 
-//////////////////////////////////////////////////////////////////
-//    Example
-//////////////////////////////////////////////////////////////////
-// struct StoreTransmitter(oneshot::Sender<Result<()>>);
-// fn store_ok(tx: Box<StoreTransmitter>) {
-//     let _ = tx.0.send(Ok(()));
-// }
-// fn store_fail(tx: Box<StoreTransmitter>, err: String) {
-//     let err = Error::msg(err);
-//     let _ = tx.0.send(Err(err));
-// }
-// async fn store_thing(
-//     storage: cxx::SharedPtr<ffi::Storage>, 
-//     key: &cxx::CxxString, 
-//     value: &cxx::CxxString,
-// ) -> Result<()> {
-//     let (tx, rx) = oneshot::channel();
-//     let tx = Box::new(StoreTransmitter(tx));
-//     ffi::store(storage, key, value, store_ok, store_fail, tx);
-//     rx.await?   
-// }
+struct StoreTransmitter(oneshot::Sender<Result<()>>);
+
+fn store_ok(tx: Box<StoreTransmitter>) {
+    let _ = tx.0.send(Ok(()));
+}
+
+fn store_fail(tx: Box<StoreTransmitter>, err: String) {
+    let err = Error::msg(err);
+    let _ = tx.0.send(Err(err));
+}
+
+async fn store_thing(
+    storage: cxx::SharedPtr<ffi::Storage>, 
+    key: &cxx::CxxString, 
+    value: &cxx::CxxString,
+) -> Result<()> {
+    let (tx, rx) = oneshot::channel();
+    let tx = Box::new(StoreTransmitter(tx));
+
+    ffi::store(storage, key, value, store_ok, store_fail, tx);
+    rx.await?   
+}
+
+struct FetchTransmitter(oneshot::Sender<Result<Option<String>>>);
+
+fn fetch_ok_found(tx: Box<FetchTransmitter>, result: String) {
+    let _ = tx.0.send(Ok(Some(result)));
+}
+fn fetch_ok_not_found(tx: Box<FetchTransmitter>) {
+    let _ = tx.0.send(Ok(None));
+}
+
+fn fetch_fail(tx: Box<FetchTransmitter>, err: String) {
+    let err = Error::msg(err);
+    let _ = tx.0.send(Err(err));
+}
+
+async fn fetch_thing(storage: cxx::SharedPtr<ffi::Storage>, key: &cxx::CxxString) -> Result<Option<String>> {
+    let (tx, rx) = oneshot::channel();
+    let tx = Box::new(FetchTransmitter(tx));
+
+    ffi::fetch(storage, key, fetch_ok_found, fetch_ok_not_found, fetch_fail, tx);
+
+    rx.await?   
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
     println!("Hello, Rustaceans!");
+    let mut index = ffi::new_index(ffi::IndexType::HashMap);
 
-    // Your code goes here
-    //
-    // let mut index = ffi::new_index(ffi::IndexType::HashMap);
-    // println!("Index size: {:?}", index.dictionary_size());
-    //
-    // let_cxx_string!(name = "doc1");
-    // let_cxx_string!(text = "This is a test document with 10 words to index.");
-    //
-    // index.pin_mut().index(&name, &text);
-    //
-    // println!("Index size after indexing: {:?}", index.dictionary_size());
+    println!("Index size: {:?}", index.dictionary_size());
+    println!("Index type: {:?}", index.index_type());
 
-    // let_cxx_string!(name = "doc2");
-    // let_cxx_string!(text = "This is a second test document with some random ending.");
-    // index.pin_mut().index(&name, &text);
-    // println!("Index size after 2 indexing: {:?}", index.dictionary_size());
+    let_cxx_string!(name = "doc1");
+    let_cxx_string!(text = "This is a test document with 10 words to index.");
+    index.pin_mut().index(&name, &text);
+    println!("Index size after indexing: {:?}", index.dictionary_size());
 
-    // let docs = ffi::search_index(&index, "test");
-    // println!("Search results for 'test': {:?}", docs);
+    let_cxx_string!(name = "doc2");
+    let_cxx_string!(text = "This is a second test document with some random ending.");
+    index.pin_mut().index(&name, &text);
+    println!("Index size after 2 indexing: {:?}", index.dictionary_size());
 
-    // let results = ffi::search_index_with_positions(&index, "test");
-    // for result in results {
-    //     println!("Document: {}, Positions: {:?}", result.name, result.positions);
-    // }
+    let docs = ffi::search_index(&index, "test");
+    println!("Search results for 'test': {:?}", docs);
 
-    // More examples:
+    let results = ffi::search_index_with_positions(&index, "test");
+    for result in results {
+        println!("Document: {}, Positions: {:?}", result.name, result.positions);
+    }
+
+    println!("Initialising storage");
+
+    let storage = ffi::Storage::init();
+    store_thing(storage.clone(), &name, &text).await?;
+   
+    println!("Stored into storage");
+
+    let fetched = fetch_thing(storage, &name).await?;
+    println!("Fetched from storage: {:?}", fetched);
     
-    // println!("Initialising storage");
-    // let storage = ffi::Storage::init();
-
-    // store_thing(storage.clone(), &name, &text).await?;
-    // println!("Stored into storage");
-
-    // let fetched = fetch_thing(storage, &name).await?;
-    // println!("Fetched from storage: {:?}", fetched);
-
     Ok(())
 }
